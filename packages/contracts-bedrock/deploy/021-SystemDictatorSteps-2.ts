@@ -303,18 +303,18 @@ const deployFn: DeployFunction = async (hre) => {
       without being paused.
     `)
 
-    if (isLiveDeployer) {
-      console.log('WARNING: OptimismPortal configured to not be paused')
-      console.log('This should only happen for test environments')
-      await assertContractVariable(OptimismPortal, 'paused', false)
-    } else {
+    // if (isLiveDeployer) {
+    //   console.log('WARNING: OptimismPortal configured to not be paused')
+    //   console.log('This should only happen for test environments')
+    //   await assertContractVariable(OptimismPortal, 'paused', false)
+    // } else {
       const tx = await OptimismPortal.populateTransaction.unpause()
       console.log(`Please unpause the OptimismPortal...`)
       console.log(`OptimismPortal address: ${OptimismPortal.address}`)
       printJsonTransaction(tx)
       printCastCommand(tx)
       await printTenderlySimulationLink(SystemDictator.provider, tx)
-    }
+    // }
 
     await awaitCondition(
       async () => {
