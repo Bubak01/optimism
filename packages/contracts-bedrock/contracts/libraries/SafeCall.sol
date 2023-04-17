@@ -53,15 +53,21 @@ library SafeCall {
     ) internal returns (bool) {
         bool _success;
         assembly {
-            // Assertion: gasleft() >= ((_minGas + 200) * 64) / 63
+            // Assertion: gasleft() >= (_minGas * 64) / 63 + 40_000
             //
-            // Because EIP-150 ensures that, a maximum of 63/64ths of the remaining gas in the call
+            // Because EIP-150 ensures that a maximum of 63/64ths of the remaining gas in the call
             // frame may be passed to a subcontext, we need to ensure that the gas will not be
             // truncated to hold this function's invariant: "If a call is performed by
             // `callWithMinGas`, it must receive at least the specified minimum gas limit." In
             // addition, exactly 51 gas is consumed between the below `GAS` opcode and the `CALL`
-            // opcode, so it is factored in with some extra room for error.
-            if lt(gas(), div(mul(64, add(_minGas, 200)), 63)) {
+            // opcode, so it is factored in with a good bit of extra room for error. The 40_000
+            // base buffer is to account for the worst case of the dynamic cost of the `CALL`
+            // opcode's `address_access_cost`, `positive_value_cost`, and
+            // `value_to_empty_account_cost` factors with an added buffer of 5,700 gas. It is
+            // still possible to self-rekt by passing a minimum gas limit that does not account
+            // for the `memory_expansion_cost + code_execution_cost` factors of the dynamic
+            // cost of the `CALL` opcode.
+            if lt(gas(), add(div(mul(_minGas, 64), 63), 40000)) {
                 // Store the "Error(string)" selector in scratch space.
                 mstore(0, 0x08c379a0)
                 // Store the pointer to the string length in scratch space.
@@ -82,13 +88,11 @@ library SafeCall {
                 revert(28, 100)
             }
 
-            // The call will be supplied at least (((_minGas + 200) * 64) / 63) - 49 gas due to the
-            // above assertion. This ensures that, in all circumstances, the call will
-            // receive at least the minimum amount of gas specified.
-            // We can prove this property by solving the inequalities:
-            // ((((_minGas + 200) * 64) / 63) - 49) >= _minGas
-            // ((((_minGas + 200) * 64) / 63) - 51) * (63 / 64) >= _minGas
-            // Both inequalities hold true for all possible values of `_minGas`.
+            // The call will be supplied at least ((_minGas * 64) / 63) gas due to the
+            // above assertion. This ensures that, in all circumstances (except for when the
+            // `_minGas` does not account for the `memory_expansion_cost` and `code_execution_cost`
+            // factors of the dynamic cost of the `CALL` opcode), the call will receive at least
+            // the minimum amount of gas specified.
             _success := call(
                 gas(), // gas
                 _target, // recipient
