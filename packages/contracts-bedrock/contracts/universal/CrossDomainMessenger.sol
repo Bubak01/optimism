@@ -368,6 +368,16 @@ abstract contract CrossDomainMessenger is
         ) {
             failedMessages[versionedHash] = true;
             emit FailedRelayedMessage(versionedHash);
+
+            // Revert in this case if the transaction was triggered by the estimation address. This
+            // should only be possible during gas estimation or we have bigger problems. Reverting
+            // here will make the behavior of gas estimation change such that the gas limit
+            // computed will be the amount required to relay the message, even if that amount is
+            // greater than the minimum gas limit specified by the user.
+            if (tx.origin == Constants.ESTIMATION_ADDRESS) {
+                revert("CrossDomainMessenger: failed to relay message");
+            }
+
             return;
         }
 
