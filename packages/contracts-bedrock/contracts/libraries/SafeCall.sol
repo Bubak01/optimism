@@ -64,9 +64,9 @@ library SafeCall {
             // base buffer is to account for the worst case of the dynamic cost of the `CALL`
             // opcode's `address_access_cost`, `positive_value_cost`, and
             // `value_to_empty_account_cost` factors with an added buffer of 5,700 gas. It is
-            // still possible to self-rekt by passing a minimum gas limit that does not account
-            // for the `memory_expansion_cost + code_execution_cost` factors of the dynamic
-            // cost of the `CALL` opcode.
+            // still possible to self-rekt by initiating a withdrawal with a minimum gas limit
+            // that does not account for the `memory_expansion_cost` & `code_execution_cost`
+            // factors of the dynamic cost of the `CALL` opcode.
             if lt(gas(), add(div(mul(_minGas, 64), 63), 40000)) {
                 // Store the "Error(string)" selector in scratch space.
                 mstore(0, 0x08c379a0)
