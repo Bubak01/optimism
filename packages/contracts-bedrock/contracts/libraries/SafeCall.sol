@@ -36,16 +36,38 @@ library SafeCall {
     }
 
     /**
-     * @notice Helper function that returns `true` if there is not enough gas remaining to cover
-     *         the minimum gas requirement for a call + an optional reserved gas amount.
+     * @notice Helper function to determine if there is sufficient gas remaining within the context
+     *         to guarantee that the minimum gas requirement for a call will be met as well as
+     *         optionally reserving a specified amount of gas for after the call has concluded.
      * @param _minGas      The minimum amount of gas that may be passed to the target context.
      * @param _reservedGas Optional amount of gas to reserve for the caller after the execution
      *                     of the target context.
+     * @return `true` if there is enough gas remaining to safely supply `_minGas` to the target
+     *         context as well as reserve `_reservedGas` for the caller after the execution of
+     *         the target context.
+     * @dev !!!!! FOOTGUN ALERT !!!!!
+     *      1.) The 40_000 base buffer is to account for the worst case of the dynamic cost of the
+     *          `CALL` opcode's `address_access_cost`, `positive_value_cost`, and
+     *          `value_to_empty_account_cost` factors with an added buffer of 5,700 gas. It is
+     *          still possible to self-rekt by initiating a withdrawal with a minimum gas limit
+     *          that does not account for the `memory_expansion_cost` & `code_execution_cost`
+     *          factors of the dynamic cost of the `CALL` opcode.
+     *      2.) This function should *directly* precede the external call if possible. There is an
+     *          added buffer to account for gas consumed between this check and the call, but it
+     *          is only 5,700 gas.
+     *      3.) Because EIP-150 ensures that a maximum of 63/64ths of the remaining gas in the call
+     *          frame may be passed to a subcontext, we need to ensure that the gas will not be
+     *          truncated.
+     *      4.) Use wisely. This function is not a silver bullet.
      */
-    function checkMinGas(uint256 _minGas, uint256 _reservedGas) internal view returns (bool _halt) {
+    function hasMinGas(uint256 _minGas, uint256 _reservedGas) internal view returns (bool) {
+        bool _hasMinGas;
         assembly {
-            _halt := lt(gas(), add(div(mul(_minGas, 64), 63), add(40000, _reservedGas))) 
+            _hasMinGas := iszero(
+                lt(gas(), add(div(mul(_minGas, 64), 63), add(40000, _reservedGas)))
+            )
         }
+        return _hasMinGas;
     }
 
     /**
@@ -65,23 +87,10 @@ library SafeCall {
         bytes memory _calldata
     ) internal returns (bool) {
         bool _success;
-        bool _halt = checkMinGas(_minGas, 0);
+        bool _hasMinGas = hasMinGas(_minGas, 0);
         assembly {
             // Assertion: gasleft() >= (_minGas * 64) / 63 + 40_000
-            //
-            // Because EIP-150 ensures that a maximum of 63/64ths of the remaining gas in the call
-            // frame may be passed to a subcontext, we need to ensure that the gas will not be
-            // truncated to hold this function's invariant: "If a call is performed by
-            // `callWithMinGas`, it must receive at least the specified minimum gas limit." In
-            // addition, exactly 51 gas is consumed between the below `GAS` opcode and the `CALL`
-            // opcode, so it is factored in with a good bit of extra room for error. The 40_000
-            // base buffer is to account for the worst case of the dynamic cost of the `CALL`
-            // opcode's `address_access_cost`, `positive_value_cost`, and
-            // `value_to_empty_account_cost` factors with an added buffer of 5,700 gas. It is
-            // still possible to self-rekt by initiating a withdrawal with a minimum gas limit
-            // that does not account for the `memory_expansion_cost` & `code_execution_cost`
-            // factors of the dynamic cost of the `CALL` opcode.
-            if _halt {
+            if iszero(_hasMinGas) {
                 // Store the "Error(string)" selector in scratch space.
                 mstore(0, 0x08c379a0)
                 // Store the pointer to the string length in scratch space.

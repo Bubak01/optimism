@@ -92,9 +92,9 @@ contract SafeCall_Test is CommonTest {
         for (uint64 i = 40_000; i < 100_000; i++) {
             uint256 snapshot = vm.snapshot();
 
-            // 65_900 is the exact amount of gas required to make the safe call
+            // 65_903 is the exact amount of gas required to make the safe call
             // successfully.
-            if (i < 65_900) {
+            if (i < 65_903) {
                 assertFalse(caller.makeSafeCall(i, 25_000));
             } else {
                 vm.expectCallMinGas(
@@ -116,9 +116,9 @@ contract SafeCall_Test is CommonTest {
         for (uint64 i = 15_200_000; i < 15_300_000; i++) {
             uint256 snapshot = vm.snapshot();
 
-            // 15_278_599 is the exact amount of gas required to make the safe call
+            // 15_278_602 is the exact amount of gas required to make the safe call
             // successfully.
-            if (i < 15_278_599) {
+            if (i < 15_278_602) {
                 assertFalse(caller.makeSafeCall(i, 15_000_000));
             } else {
                 vm.expectCallMinGas(
