@@ -418,6 +418,37 @@ func (_L1CrossDomainMessenger *L1CrossDomainMessengerCallerSession) PORTAL() (co
 	return _L1CrossDomainMessenger.Contract.PORTAL(&_L1CrossDomainMessenger.CallOpts)
 }
 
+// RELAYRESERVEDGAS is a free data retrieval call binding the contract method 0x8cbeeef2.
+//
+// Solidity: function RELAY_RESERVED_GAS() view returns(uint64)
+func (_L1CrossDomainMessenger *L1CrossDomainMessengerCaller) RELAYRESERVEDGAS(opts *bind.CallOpts) (uint64, error) {
+	var out []interface{}
+	err := _L1CrossDomainMessenger.contract.Call(opts, &out, "RELAY_RESERVED_GAS")
+
+	if err != nil {
+		return *new(uint64), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(uint64)).(*uint64)
+
+	return out0, err
+
+}
+
+// RELAYRESERVEDGAS is a free data retrieval call binding the contract method 0x8cbeeef2.
+//
+// Solidity: function RELAY_RESERVED_GAS() view returns(uint64)
+func (_L1CrossDomainMessenger *L1CrossDomainMessengerSession) RELAYRESERVEDGAS() (uint64, error) {
+	return _L1CrossDomainMessenger.Contract.RELAYRESERVEDGAS(&_L1CrossDomainMessenger.CallOpts)
+}
+
+// RELAYRESERVEDGAS is a free data retrieval call binding the contract method 0x8cbeeef2.
+//
+// Solidity: function RELAY_RESERVED_GAS() view returns(uint64)
+func (_L1CrossDomainMessenger *L1CrossDomainMessengerCallerSession) RELAYRESERVEDGAS() (uint64, error) {
+	return _L1CrossDomainMessenger.Contract.RELAYRESERVEDGAS(&_L1CrossDomainMessenger.CallOpts)
+}
+
 // BaseGas is a free data retrieval call binding the contract method 0xb28ade25.
 //
 // Solidity: function baseGas(bytes _message, uint32 _minGasLimit) pure returns(uint64)
