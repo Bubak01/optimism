@@ -356,7 +356,7 @@ abstract contract CrossDomainMessenger is
         // is being re-entered. This marks the message as failed to allow it
         // to be replayed.
         if (
-            SafeCall.checkMinGas(_minGasLimit, RELAY_RESERVED_GAS) ||
+            !SafeCall.hasMinGas(_minGasLimit, RELAY_RESERVED_GAS) ||
             xDomainMsgSender != Constants.DEFAULT_L2_SENDER
         ) {
             failedMessages[versionedHash] = true;
