@@ -142,18 +142,6 @@ abstract contract CrossDomainMessenger is
     uint64 public constant MIN_GAS_CALLDATA_OVERHEAD = 16;
 
     /**
-     * @notice Gas reserved for finalizing the execution of `relayMessage` after the safe call
-     *         as well as paying for the call itself.
-     * @dev The worst-case cost of the CALL opcode is
-     *      `34_300 + memory_expansion_cost + code_execution_cost` gas, and the code following
-     *      the `SafeCall.call` call in `relayMessage` costs around 20_000 gas. This buffer is
-     *      conservative to combat minimum gas limit griefing attacks. If there is not enough
-     *      gas remaining to cover the reserved gas, the message will be able to be replayed
-     *      with a higher gas limit.
-     */
-    uint64 public constant RELAY_RESERVED_GAS = 80_000;
-
-    /**
      * @notice Address of the paired CrossDomainMessenger contract on the other chain.
      */
     address public immutable OTHER_MESSENGER;
@@ -357,32 +345,17 @@ abstract contract CrossDomainMessenger is
             "CrossDomainMessenger: message has already been relayed"
         );
 
-        // If there is not enough gas left to perform the external call and finish the execution,
-        // return early and assign the message to the failedMessages mapping.
         // If `xDomainMsgSender` is not the default L2 sender, this function
         // is being re-entered. This marks the message as failed to allow it
         // to be replayed.
-        if (
-            gasleft() < _minGasLimit + RELAY_RESERVED_GAS ||
-            xDomainMsgSender != Constants.DEFAULT_L2_SENDER
-        ) {
+        if (xDomainMsgSender != Constants.DEFAULT_L2_SENDER) {
             failedMessages[versionedHash] = true;
             emit FailedRelayedMessage(versionedHash);
-
-            // Revert in this case if the transaction was triggered by the estimation address. This
-            // should only be possible during gas estimation or we have bigger problems. Reverting
-            // here will make the behavior of gas estimation change such that the gas limit
-            // computed will be the amount required to relay the message, even if that amount is
-            // greater than the minimum gas limit specified by the user.
-            if (tx.origin == Constants.ESTIMATION_ADDRESS) {
-                revert("CrossDomainMessenger: failed to relay message");
-            }
-
             return;
         }
 
         xDomainMsgSender = _sender;
-        bool success = SafeCall.call(_target, gasleft(), _value, _message);
+        bool success = SafeCall.callWithMinGas(_target, _minGasLimit, _value, _message);
         xDomainMsgSender = Constants.DEFAULT_L2_SENDER;
 
         if (success) {
@@ -452,9 +425,7 @@ abstract contract CrossDomainMessenger is
             // Calldata overhead
             (uint64(_message.length) * MIN_GAS_CALLDATA_OVERHEAD) +
             // Constant overhead
-            MIN_GAS_CONSTANT_OVERHEAD +
-            // Relay reserved gas
-            RELAY_RESERVED_GAS;
+            MIN_GAS_CONSTANT_OVERHEAD;
     }
 
     /**

@@ -9,7 +9,7 @@ There are two minimum gas limits here:
 
 
 ## A call to `relayMessage` should not revert, but should silently fail if the relay gas cannot be reserved.
-**Test:** [`CrossDomainMessenger.t.sol#L169`](../contracts/test/invariants/CrossDomainMessenger.t.sol#L169)
+**Test:** [`CrossDomainMessenger.t.sol#L171`](../contracts/test/invariants/CrossDomainMessenger.t.sol#L171)
 
 There are two minimum gas limits here: 
 - The outer min gas limit is for the call from the `OptimismPortal` to the `L1CrossDomainMessenger`,  and it can be retrieved by calling the xdm's `baseGas` function with the `message` and inner limit. 

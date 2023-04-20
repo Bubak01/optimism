@@ -36,6 +36,19 @@ library SafeCall {
     }
 
     /**
+     * @notice Helper function that returns `true` if there is not enough gas remaining to cover
+     *         the minimum gas requirement for a call + an optional reserved gas amount.
+     * @param _minGas      The minimum amount of gas that may be passed to the target context.
+     * @param _reservedGas Optional amount of gas to reserve for the caller after the execution
+     *                     of the target context.
+     */
+    function checkMinGas(uint256 _minGas, uint256 _reservedGas) internal view returns (bool _halt) {
+        assembly {
+            _halt := lt(gas(), add(div(mul(_minGas, 64), 63), add(40000, _reservedGas))) 
+        }
+    }
+
+    /**
      * @notice Perform a low level call without copying any returndata. This function
      *         will revert if the call cannot be performed with the specified minimum
      *         gas.
@@ -52,6 +65,7 @@ library SafeCall {
         bytes memory _calldata
     ) internal returns (bool) {
         bool _success;
+        bool _halt = checkMinGas(_minGas, 0);
         assembly {
             // Assertion: gasleft() >= (_minGas * 64) / 63 + 40_000
             //
@@ -67,7 +81,7 @@ library SafeCall {
             // still possible to self-rekt by initiating a withdrawal with a minimum gas limit
             // that does not account for the `memory_expansion_cost` & `code_execution_cost`
             // factors of the dynamic cost of the `CALL` opcode.
-            if lt(gas(), add(div(mul(_minGas, 64), 63), 40000)) {
+            if _halt {
                 // Store the "Error(string)" selector in scratch space.
                 mstore(0, 0x08c379a0)
                 // Store the pointer to the string length in scratch space.

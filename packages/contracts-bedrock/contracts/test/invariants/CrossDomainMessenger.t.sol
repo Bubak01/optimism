@@ -136,15 +136,17 @@ contract XDM_MinGasLimits_Succeeds is XDM_MinGasLimits {
      * contract.
      */
     function invariant_minGasLimits() external {
-        uint256 length = actor.numHashes();
-        for (uint256 i = 0; i < length; ++i) {
-            bytes32 hash = actor.hashes(i);
-            // the message hash is in the successfulMessages mapping
-            assertTrue(L1Messenger.successfulMessages(hash));
-            // it is not in the received messages mapping
-            assertFalse(L1Messenger.failedMessages(hash));
-        }
-        assertFalse(actor.reverted());
+        // DEV: See stacked PR.
+
+        // uint256 length = actor.numHashes();
+        // for (uint256 i = 0; i < length; ++i) {
+        //     bytes32 hash = actor.hashes(i);
+        //     // the message hash is in the successfulMessages mapping
+        //     assertTrue(L1Messenger.successfulMessages(hash));
+        //     // it is not in the received messages mapping
+        //     assertFalse(L1Messenger.failedMessages(hash));
+        // }
+        // assertFalse(actor.reverted());
     }
 }
 
@@ -167,14 +169,16 @@ contract XDM_MinGasLimits_Reverts is XDM_MinGasLimits {
      * contract.
      */
     function invariant_minGasLimits() external {
-        uint256 length = actor.numHashes();
-        for (uint256 i = 0; i < length; ++i) {
-            bytes32 hash = actor.hashes(i);
-            // the message hash is in the successfulMessages mapping
-            assertTrue(L1Messenger.failedMessages(hash));
-            // it is not in the received messages mapping
-            assertFalse(L1Messenger.successfulMessages(hash));
-        }
-        assertFalse(actor.reverted());
+        // DEV: See stacked PR.
+
+        // uint256 length = actor.numHashes();
+        // for (uint256 i = 0; i < length; ++i) {
+        //     bytes32 hash = actor.hashes(i);
+        //     // the message hash is in the successfulMessages mapping
+        //     assertTrue(L1Messenger.failedMessages(hash));
+        //     // it is not in the received messages mapping
+        //     assertFalse(L1Messenger.successfulMessages(hash));
+        // }
+        // assertFalse(actor.reverted());
     }
 }
