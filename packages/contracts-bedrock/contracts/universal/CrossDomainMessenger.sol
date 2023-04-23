@@ -152,6 +152,12 @@ abstract contract CrossDomainMessenger is
     uint64 public constant RELAY_RESERVED_GAS = 40_000;
 
     /**
+     * @notice Gas reserved for the execution between the `hasMinGas` check and the external
+     *         call in `relayMessage`.
+     */
+    uint64 public constant RELAY_GAS_CHECK_BUFFER = 5_000;
+
+    /**
      * @notice Address of the paired CrossDomainMessenger contract on the other chain.
      */
     address public immutable OTHER_MESSENGER;
@@ -357,11 +363,15 @@ abstract contract CrossDomainMessenger is
 
         // If there is not enough gas left to perform the external call and finish the execution,
         // return early and assign the message to the failedMessages mapping.
+        // We are asserting that we have enough gas to:
+        // 1. Call the target contract (_minGasLimit + RELAY_CALL_OVERHEAD + RELAY_GAS_CHECK_BUFFER)
+        //   1.a. The RELAY_CALL_OVERHEAD is included in `hasMinGas`.
+        // 2. Finish the execution after the external call (RELAY_RESERVED_GAS).
+        //
         // If `xDomainMsgSender` is not the default L2 sender, this function
-        // is being re-entered. This marks the message as failed to allow it
-        // to be replayed.
+        // is being re-entered. This marks the message as failed to allow it to be replayed.
         if (
-            !SafeCall.hasMinGas(_minGasLimit, RELAY_RESERVED_GAS) ||
+            !SafeCall.hasMinGas(_minGasLimit, RELAY_RESERVED_GAS + RELAY_GAS_CHECK_BUFFER) ||
             xDomainMsgSender != Constants.DEFAULT_L2_SENDER
         ) {
             failedMessages[versionedHash] = true;
@@ -453,7 +463,10 @@ abstract contract CrossDomainMessenger is
             RELAY_CALL_OVERHEAD +
             // Relay reserved gas (to ensure execution of `relayMessage` completes after the
             // subcontext finishes executing) (Conservative)
-            RELAY_RESERVED_GAS;
+            RELAY_RESERVED_GAS +
+            // Gas reserved for the execution between the `hasMinGas` check and the `CALL`
+            // opcode. (Conservative)
+            RELAY_GAS_CHECK_BUFFER;
     }
 
     /**
