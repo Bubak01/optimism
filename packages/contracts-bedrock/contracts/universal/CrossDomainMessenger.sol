@@ -124,17 +124,17 @@ abstract contract CrossDomainMessenger is
     /**
      * @notice Constant overhead added to the base gas for a message.
      */
-    uint64 public constant MIN_GAS_CONSTANT_OVERHEAD = 200_000;
+    uint64 public constant RELAY_CONSTANT_OVERHEAD = 200_000;
 
     /**
      * @notice Numerator for dynamic overhead added to the base gas for a message.
      */
-    uint64 public constant MIN_GAS_DYNAMIC_OVERHEAD_NUMERATOR = 1016;
+    uint64 public constant MIN_GAS_DYNAMIC_OVERHEAD_NUMERATOR = 64;
 
     /**
      * @notice Denominator for dynamic overhead added to the base gas for a message.
      */
-    uint64 public constant MIN_GAS_DYNAMIC_OVERHEAD_DENOMINATOR = 1000;
+    uint64 public constant MIN_GAS_DYNAMIC_OVERHEAD_DENOMINATOR = 63;
 
     /**
      * @notice Extra gas added to base gas for each byte of calldata in a message.
@@ -142,9 +142,14 @@ abstract contract CrossDomainMessenger is
     uint64 public constant MIN_GAS_CALLDATA_OVERHEAD = 16;
 
     /**
+     * @notice Gas reserved for performing the external call in `relayMessage`.
+     */
+    uint64 public constant RELAY_CALL_OVERHEAD = 40_000;
+
+    /**
      * @notice Gas reserved for finalizing the execution of `relayMessage` after the safe call.
      */
-    uint64 public constant RELAY_RESERVED_GAS = 50_000;
+    uint64 public constant RELAY_RESERVED_GAS = 40_000;
 
     /**
      * @notice Address of the paired CrossDomainMessenger contract on the other chain.
@@ -435,18 +440,19 @@ abstract contract CrossDomainMessenger is
      * @return Amount of gas required to guarantee message receipt.
      */
     function baseGas(bytes calldata _message, uint32 _minGasLimit) public pure returns (uint64) {
-        // We peform the following math on uint64s to avoid overflow errors. Multiplying the
-        // by MIN_GAS_DYNAMIC_OVERHEAD_NUMERATOR would otherwise limit the _minGasLimit to
-        // type(uint32).max / MIN_GAS_DYNAMIC_OVERHEAD_NUMERATOR ~= 4.2m.
         return
-            // Dynamic overhead
-            ((uint64(_minGasLimit) * MIN_GAS_DYNAMIC_OVERHEAD_NUMERATOR) /
-                MIN_GAS_DYNAMIC_OVERHEAD_DENOMINATOR) +
+            // Constant overhead
+            RELAY_CONSTANT_OVERHEAD +
             // Calldata overhead
             (uint64(_message.length) * MIN_GAS_CALLDATA_OVERHEAD) +
-            // Constant overhead
-            MIN_GAS_CONSTANT_OVERHEAD +
-            // Relay reserved gas
+            // Dynamic overhead (EIP-150)
+            ((_minGasLimit * MIN_GAS_DYNAMIC_OVERHEAD_NUMERATOR) /
+                MIN_GAS_DYNAMIC_OVERHEAD_DENOMINATOR) +
+            // Gas reserved for the worst-case cost of 3/5 of the `CALL` opcode's dynamic gas
+            // factors. (Conservative)
+            RELAY_CALL_OVERHEAD +
+            // Relay reserved gas (to ensure execution of `relayMessage` completes after the
+            // subcontext finishes executing) (Conservative)
             RELAY_RESERVED_GAS;
     }
 
