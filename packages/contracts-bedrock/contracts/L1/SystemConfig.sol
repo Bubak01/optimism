@@ -22,12 +22,16 @@ contract SystemConfig is OwnableUpgradeable, Semver {
      * @custom:value GAS_LIMIT            Represents an update to gas limit on L2.
      * @custom:value UNSAFE_BLOCK_SIGNER  Represents an update to the signer key for unsafe
      *                                    block distrubution.
+     * @custom:value SIGNER_SET           Represents an update to the signer set.
+     * @custom:value SIGNATURE_THRESHOLD  Represents an update to the signature threshold.
      */
     enum UpdateType {
         BATCHER,
         GAS_CONFIG,
         GAS_LIMIT,
-        UNSAFE_BLOCK_SIGNER
+        UNSAFE_BLOCK_SIGNER,
+        SIGNER_SET,
+        SIGNATURE_THRESHOLD
     }
 
     /**
@@ -69,6 +73,19 @@ contract SystemConfig is OwnableUpgradeable, Semver {
      *         so that the struct is returned instead of a tuple.
      */
     ResourceMetering.ResourceConfig internal _resourceConfig;
+
+    /**
+     * @notice The `signerSet` is a set of addresses that are allowed to issue positive attestations
+     *         for alternative output proposals in the `AttestationDisputeGame`.
+     */
+    address[] internal _signerSet;
+
+    /**
+     * @notice The `signatureThreshold` is the number of positive attestations that must be issued
+     *         for a given alternative output proposal in the `AttestationDisputeGame` before it is
+     *         considered to be the canonical output.
+     */
+    uint256 public signatureThreshold;
 
     /**
      * @notice Emitted when configuration is updated
@@ -247,6 +264,15 @@ contract SystemConfig is OwnableUpgradeable, Semver {
     }
 
     /**
+     * @notice A getter for the signer set.
+     *
+     * @return A list of addresses.
+     */
+    function signerSet() external view returns (address[] memory) {
+        return _signerSet;
+    }
+
+    /**
      * @notice An external setter for the resource config. In the future, this
      *         method may emit an event that the `op-node` picks up for when the
      *         resource config is changed.
@@ -293,5 +319,49 @@ contract SystemConfig is OwnableUpgradeable, Semver {
         );
 
         _resourceConfig = _config;
+    }
+
+    /**
+     * @notice An external setter for the `signerSet` mapping. This method is used to
+     *         authenticate or deauthenticate a signer in the `AttestationDisputeGame`.
+     * @param _signer Address of the signer to authenticate or deauthenticate.
+     * @param _authenticated True if the signer should be authenticated, false if the
+     *        signer should be removed.
+     */
+    function setSigner(address _signer, bool _authenticated) external onlyOwner {
+        uint256 len = _signerSet.length;
+        for (uint256 i = 0; i < len; i++) {
+            if (_signerSet[i] == _signer) {
+                if (_authenticated) {
+                    revert("SystemConfig: signer already authenticated");
+                } else {
+                    // Remove the signer from the array by swapping it with the last signer
+                    // and then popping the last element.
+                    _signerSet[i] = _signerSet[len - 1];
+                    _signerSet.pop();
+                    emit ConfigUpdate(VERSION, UpdateType.SIGNER_SET, abi.encode(_signer, false));
+                    return;
+                }
+            }
+        }
+        if (_authenticated) {
+            _signerSet.push(_signer);
+        }
+        emit ConfigUpdate(VERSION, UpdateType.SIGNER_SET, abi.encode(_signer, _authenticated));
+    }
+
+    /**
+     * @notice An external setter for the `signatureThreshold` variable. This method is used to
+     *         set the number of signatures required to invalidate an output proposal
+     *         in the `AttestationDisputeGame`.
+     */
+    function setSignatureThreshold(uint256 _signatureThreshold) external onlyOwner {
+        require(
+            _signatureThreshold > 0,
+            "SystemConfig: signature threshold must be greater than 0"
+        );
+
+        signatureThreshold = _signatureThreshold;
+        emit ConfigUpdate(VERSION, UpdateType.SIGNATURE_THRESHOLD, abi.encode(_signatureThreshold));
     }
 }

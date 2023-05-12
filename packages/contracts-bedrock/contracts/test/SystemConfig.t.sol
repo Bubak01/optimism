@@ -143,6 +143,31 @@ contract SystemConfig_Setters_TestFail is SystemConfig_Init {
         vm.expectRevert("SystemConfig: precision loss with target resource limit");
         sysConf.setResourceConfig(config);
     }
+
+    function testFuzz_setSigner_nonOwner_reverts(address _signer, bool _authenticated) external {
+        vm.expectRevert("Ownable: caller is not the owner");
+        sysConf.setSigner(_signer, _authenticated);
+    }
+
+    function test_setSigner_alreadyAuthenticated_reverts() external {
+        vm.prank(sysConf.owner());
+        sysConf.setSigner(address(0x20), true);
+
+        vm.prank(sysConf.owner());
+        vm.expectRevert("SystemConfig: signer already authenticated");
+        sysConf.setSigner(address(0x20), true);
+    }
+
+    function test_setSignatureThreshold_notOwner_reverts() external {
+        vm.expectRevert("Ownable: caller is not the owner");
+        sysConf.setSignatureThreshold(0);
+    }
+
+    function test_setSignatureThreshold_zero_reverts() external {
+        vm.prank(sysConf.owner());
+        vm.expectRevert("SystemConfig: signature threshold must be greater than 0");
+        sysConf.setSignatureThreshold(0);
+    }
 }
 
 contract SystemConfig_Setters_Test is SystemConfig_Init {
@@ -200,5 +225,38 @@ contract SystemConfig_Setters_Test is SystemConfig_Init {
         vm.prank(sysConf.owner());
         sysConf.setUnsafeBlockSigner(newUnsafeSigner);
         assertEq(sysConf.unsafeBlockSigner(), newUnsafeSigner);
+    }
+
+    function testFuzz_setSigner_succeeds(address _signer, bool _authenticated) external {
+        address[] memory cachedSigners = sysConf.signerSet();
+        uint256 len = cachedSigners.length;
+        for (uint256 i = 0; i < len; i++) {
+            if (cachedSigners[i] == _signer) {
+                if (_authenticated) {
+                    vm.expectRevert("SystemConfig: signer already authenticated");
+                } else {
+                    vm.expectEmit(true, true, true, true);
+                    emit ConfigUpdate(
+                        0,
+                        SystemConfig.UpdateType.SIGNER_SET,
+                        abi.encode(_signer, _authenticated)
+                    );
+                }
+            }
+        }
+        vm.prank(sysConf.owner());
+        sysConf.setSigner(_signer, _authenticated);
+    }
+
+    function testFuzz_setSignatureThreshold_succeeds(uint256 _signatureThreshold) external {
+        vm.assume(_signatureThreshold > 0);
+        vm.expectEmit(true, true, true, true);
+        emit ConfigUpdate(
+            0,
+            SystemConfig.UpdateType.SIGNATURE_THRESHOLD,
+            abi.encode(_signatureThreshold)
+        );
+        vm.prank(sysConf.owner());
+        sysConf.setSignatureThreshold(_signatureThreshold);
     }
 }
